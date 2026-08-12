@@ -29,7 +29,7 @@ class MessageSnapshot:
     labels: tuple[str, ...] = ()
     has_attachment: bool = False
     normalized_subject: str | None = None
-    participants: tuple[str, ...] = ()
+    correspondents: tuple[str, ...] = ()
     semantic_label_hints: tuple[str, ...] = ()
 
 
