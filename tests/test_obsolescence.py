@@ -98,6 +98,32 @@ class ObsolescenceTests(unittest.TestCase):
                 )
                 self.assertTrue(result.future_trash_candidate)
 
+    def test_generic_notification_is_not_future_trash_candidate(self):
+        message = MessageSnapshot(
+            "m-generic-notification",
+            normalized_subject="Notification",
+        )
+        result = assess_message_obsolescence(
+            message,
+            ObsolescenceContext(
+                age_days=365,
+                automated_sender=True,
+                **complete_safety_context(),
+            ),
+            protection_assessment=complete_unprotected(message),
+        )
+
+        self.assertEqual(
+            result.obsolescence_class,
+            ObsolescenceClass.UNKNOWN,
+        )
+        self.assertEqual(result.confidence_score, 0.0)
+        self.assertEqual(
+            result.recommendation,
+            ObsolescenceRecommendation.RETAIN,
+        )
+        self.assertFalse(result.future_trash_candidate)
+
     def test_age_alone_never_creates_obsolescence_evidence(self):
         message = MessageSnapshot("m-age-only", normalized_subject="Personal note")
         result = assess_message_obsolescence(
