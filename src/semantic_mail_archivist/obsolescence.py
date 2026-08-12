@@ -142,7 +142,6 @@ _CLASS_KEYWORDS: dict[ObsolescenceClass, tuple[str, ...]] = {
         "do not reply",
         "no reply",
         "noreply",
-        "notification",
         "notifica automatica",
         "messaggio automatico",
     ),
