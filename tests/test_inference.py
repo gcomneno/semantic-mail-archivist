@@ -23,19 +23,19 @@ class LabelInferenceTests(unittest.TestCase):
                     "m1",
                     ("Personal/Housing",),
                     normalized_subject="maintenance",
-                    participants=("owner@example.test", "vendor@example.test"),
+                    correspondents=("vendor@example.test",),
                 ),
                 MessageSnapshot(
                     "m2",
                     ("INBOX",),
                     normalized_subject="maintenance",
-                    participants=("owner@example.test", "vendor@example.test"),
+                    correspondents=("vendor@example.test",),
                 ),
                 MessageSnapshot(
                     "m3",
                     ("Personal/Housing",),
                     normalized_subject="maintenance",
-                    participants=("owner@example.test", "vendor@example.test"),
+                    correspondents=("vendor@example.test",),
                 ),
             ),
         )
@@ -108,12 +108,12 @@ class LabelInferenceTests(unittest.TestCase):
                     "m1",
                     ("Work/Vendor",),
                     normalized_subject="invoice",
-                    participants=("vendor@example.test",),
+                    correspondents=("vendor@example.test",),
                 ),
                 MessageSnapshot(
                     "m2",
                     normalized_subject="holiday",
-                    participants=("friend@example.test",),
+                    correspondents=("friend@example.test",),
                 ),
             ),
         )
@@ -124,7 +124,7 @@ class LabelInferenceTests(unittest.TestCase):
         self.assertEqual(result.confidence_band, ConfidenceBand.LOW)
         self.assertLess(result.confidence_score, 0.60)
         self.assertIn("subject_discontinuity", result.conflicts)
-        self.assertIn("participant_discontinuity", result.conflicts)
+        self.assertIn("correspondent_discontinuity", result.conflicts)
 
     def test_positive_semantic_hint_is_inspectable_evidence(self):
         thread = ThreadSnapshot(
@@ -163,6 +163,40 @@ class LabelInferenceTests(unittest.TestCase):
 
         self.assertEqual(result.confidence_score, reconstructed)
         self.assertEqual(result.confidence_band, ConfidenceBand.HIGH)
+
+    def test_score_clamp_is_explicit_and_reconstructable(self):
+        thread = ThreadSnapshot(
+            "thread-8",
+            (
+                MessageSnapshot(
+                    "m1",
+                    ("Work/Training",),
+                    normalized_subject="course",
+                    correspondents=("trainer@example.test",),
+                ),
+                MessageSnapshot(
+                    "m2",
+                    normalized_subject="course",
+                    correspondents=("trainer@example.test",),
+                    semantic_label_hints=("Work/Training",),
+                ),
+                MessageSnapshot(
+                    "m3",
+                    ("Work/Training",),
+                    normalized_subject="course",
+                    correspondents=("trainer@example.test",),
+                ),
+            ),
+        )
+
+        result = infer_label_from_thread(thread, self.candidate_for(thread))
+        reconstructed = round(sum(item.contribution for item in result.evidence), 3)
+        signals = {item.signal: item for item in result.evidence}
+
+        self.assertEqual(result.confidence_score, 1.0)
+        self.assertEqual(reconstructed, 1.0)
+        self.assertIn("score_clamp", signals)
+        self.assertLess(signals["score_clamp"].contribution, 0.0)
 
 
 if __name__ == "__main__":
