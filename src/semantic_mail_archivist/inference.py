@@ -191,37 +191,40 @@ def infer_label_from_thread(
                 )
             )
 
-    if target.participants:
-        target_participants = set(target.participants)
-        supporter_participants = [
-            set(message.participants) for message in supporters if message.participants
+    # Correspondents intentionally exclude the mailbox owner's own identities;
+    # otherwise every ordinary thread would share the owner and create a trivial
+    # false-positive continuity signal.
+    if target.correspondents:
+        target_correspondents = set(target.correspondents)
+        supporter_correspondents = [
+            set(message.correspondents) for message in supporters if message.correspondents
         ]
-        if supporter_participants:
+        if supporter_correspondents:
             overlaps = [
-                bool(target_participants.intersection(participants))
-                for participants in supporter_participants
+                bool(target_correspondents.intersection(correspondents))
+                for correspondents in supporter_correspondents
             ]
             if all(overlaps):
                 score += 0.05
                 signals.append(
                     InferenceEvidence(
-                        signal="participant_continuity",
+                        signal="correspondent_continuity",
                         detail=(
-                            "Target shares at least one participant with every "
-                            "supporter carrying participant metadata."
+                            "Target shares at least one non-owner correspondent with "
+                            "every supporter carrying correspondent metadata."
                         ),
                         contribution=0.05,
                     )
                 )
             elif not any(overlaps):
                 score -= 0.10
-                conflicts.append("participant_discontinuity")
+                conflicts.append("correspondent_discontinuity")
                 signals.append(
                     InferenceEvidence(
-                        signal="participant_continuity",
+                        signal="correspondent_continuity",
                         detail=(
-                            "Target shares no participants with supporters carrying "
-                            "participant metadata."
+                            "Target shares no non-owner correspondents with supporters "
+                            "carrying correspondent metadata."
                         ),
                         contribution=-0.10,
                     )
@@ -249,7 +252,19 @@ def infer_label_from_thread(
             )
         )
 
-    score = round(max(0.0, min(1.0, score)), 3)
+    unclamped_score = score
+    clamped_score = max(0.0, min(1.0, unclamped_score))
+    clamp_contribution = round(clamped_score - unclamped_score, 3)
+    if clamp_contribution:
+        signals.append(
+            InferenceEvidence(
+                signal="score_clamp",
+                detail="Policy score normalized to the allowed [0.00, 1.00] range.",
+                contribution=clamp_contribution,
+            )
+        )
+
+    score = round(clamped_score, 3)
     band = confidence_band(score)
     proposed_label = proposed if band is not ConfidenceBand.LOW else None
 
