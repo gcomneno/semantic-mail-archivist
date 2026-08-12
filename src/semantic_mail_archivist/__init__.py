@@ -69,6 +69,21 @@ from .reporting import (
     render_dry_run_text,
 )
 
+from .audit import (
+    AUDIT_SCHEMA_VERSION,
+    AuditMessageRecord,
+    AuditSummary,
+    AuditWarning,
+    AuditWarningCode,
+    MailboxAuditReport,
+    ProviderLimitation,
+    TaxonomyLabelSummary,
+    build_mailbox_audit,
+    render_mailbox_audit_json,
+    render_mailbox_audit_text,
+)
+
+
 __all__ = [
     "AttachmentDisposition",
     "AttachmentSnapshot",
@@ -129,4 +144,15 @@ __all__ = [
     "infer_protected_domains",
     "render_dry_run_json",
     "render_dry_run_text",
+    "AUDIT_SCHEMA_VERSION",
+    "AuditMessageRecord",
+    "AuditSummary",
+    "AuditWarning",
+    "AuditWarningCode",
+    "MailboxAuditReport",
+    "ProviderLimitation",
+    "TaxonomyLabelSummary",
+    "build_mailbox_audit",
+    "render_mailbox_audit_json",
+    "render_mailbox_audit_text",
 ]
