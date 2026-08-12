@@ -16,6 +16,8 @@ Semantic Mail Archivist aims to make that archive trustworthy again without repl
 
 The existing mailbox organization is evidence. Semantic Mail Archivist should first understand it, then repair gaps, propose classifications, identify valuable documents, and surface obsolete material conservatively.
 
+The non-negotiable project invariants are recorded in the [Project Charter](docs/PROJECT_CHARTER.md).
+
 ## The founding problem
 
 A thread may be semantically classified while some individual messages are not:
@@ -210,18 +212,18 @@ The first real-world investigation uses Gmail semantics, but the conceptual core
 
 ## Initial roadmap
 
-1. Define the mail classification and safety model.
-2. Detect message-level label gaps inside classified threads.
-3. Infer labels from thread context with confidence scoring.
-4. Add dry-run repair reports.
-5. Detect significant documents versus generic attachments.
-6. Introduce protected semantic categories.
-7. Detect obsolete low-value messages safely.
-8. Add an optional operational state layer.
-9. Produce a complete mailbox audit report.
-10. Create an auditable change log.
+1. [#1 — Define the mail classification and safety model](https://github.com/gcomneno/semantic-mail-archivist/issues/1)
+2. [#2 — Detect message-level label gaps inside classified threads](https://github.com/gcomneno/semantic-mail-archivist/issues/2)
+3. [#3 — Infer labels from thread context with confidence scoring](https://github.com/gcomneno/semantic-mail-archivist/issues/3)
+4. [#4 — Add dry-run repair reports](https://github.com/gcomneno/semantic-mail-archivist/issues/4)
+5. [#5 — Detect significant documents versus generic attachments](https://github.com/gcomneno/semantic-mail-archivist/issues/5)
+6. [#6 — Introduce protected semantic categories](https://github.com/gcomneno/semantic-mail-archivist/issues/6)
+7. [#7 — Detect obsolete low-value messages safely](https://github.com/gcomneno/semantic-mail-archivist/issues/7)
+8. [#8 — Add an optional operational state layer](https://github.com/gcomneno/semantic-mail-archivist/issues/8)
+9. [#9 — Produce a complete mailbox audit report](https://github.com/gcomneno/semantic-mail-archivist/issues/9)
+10. [#10 — Create an auditable change log](https://github.com/gcomneno/semantic-mail-archivist/issues/10)
 
-Each roadmap item is tracked as a GitHub issue before application code is introduced.
+The roadmap is intentionally contract-first: safety and detection precede inference, and inference precedes mailbox mutation.
 
 ## Development approach
 
@@ -251,4 +253,4 @@ Tests should verify both successful repair and deliberate refusal when evidence 
 
 **Design / foundation phase. No application implementation yet.**
 
-The immediate goal is to formalize the safety contract, inference model, synthetic acceptance fixtures, and auditable CLI behavior before writing the repair engine.
+The immediate goal is to formalize the safety contract, inference model, synthetic acceptance fixtures, dry-run format, and audit contract before writing the repair engine.
