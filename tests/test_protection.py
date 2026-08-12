@@ -241,6 +241,31 @@ class ProtectedDomainTests(unittest.TestCase):
             )
         )
 
+    def test_document_candidates_must_belong_to_assessed_message(self):
+        target = MessageSnapshot("m-document-target")
+        source_message = MessageSnapshot(
+            "m-document-source",
+            normalized_subject="Insurance renewal",
+        )
+        document = assess_document_significance(
+            source_message,
+            AttachmentSnapshot(
+                "a-document-source",
+                filename="insurance-policy.pdf",
+                mime_type="application/pdf",
+                disposition=AttachmentDisposition.ATTACHMENT,
+            ),
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "document_candidates must belong to the assessed message",
+        ):
+            infer_protected_domains(
+                target,
+                document_candidates=(document,),
+            )
+
     def test_high_confidence_document_candidate_produces_protected_domain(self):
         document_message = MessageSnapshot(
             "m-document-high",

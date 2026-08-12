@@ -390,6 +390,16 @@ def infer_protected_domains(
 ) -> ProtectedDomainAssessment:
     """Infer protected-domain hints without mutating provider state."""
 
+    candidates = tuple(document_candidates)
+
+    if any(
+        candidate.message_id != message.message_id
+        for candidate in candidates
+    ):
+        raise ValueError(
+            "document_candidates must belong to the assessed message"
+        )
+
     scores = {domain: 0.0 for domain in ProtectedDomain}
     evidence = {domain: [] for domain in ProtectedDomain}
 
@@ -416,7 +426,7 @@ def infer_protected_domains(
         value=_normalized(" ".join(message.correspondents)),
         contribution=0.20,
     )
-    _add_document_sources(scores, evidence, document_candidates)
+    _add_document_sources(scores, evidence, candidates)
 
     hints = tuple(
         _build_hint(domain, scores[domain], evidence[domain])
