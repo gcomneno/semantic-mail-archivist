@@ -1,4 +1,13 @@
 from .detection import detect_message_level_label_gaps
+from .documents import (
+    AttachmentDisposition,
+    AttachmentSnapshot,
+    DocumentCandidate,
+    DocumentClass,
+    DocumentEvidence,
+    DocumentSignificance,
+    assess_document_significance,
+)
 from .inference import confidence_band, infer_label_from_thread
 from .model import (
     ConfidenceBand,
@@ -27,9 +36,15 @@ from .reporting import (
 )
 
 __all__ = [
+    "AttachmentDisposition",
+    "AttachmentSnapshot",
     "AuthorizationReason",
     "ConfidenceBand",
     "ContextStatus",
+    "DocumentCandidate",
+    "DocumentClass",
+    "DocumentEvidence",
+    "DocumentSignificance",
     "DryRunCandidateReport",
     "DryRunReport",
     "ExecutionStatus",
@@ -45,6 +60,7 @@ __all__ = [
     "RepairRecommendation",
     "SafetyGateResult",
     "ThreadSnapshot",
+    "assess_document_significance",
     "build_dry_run_report",
     "confidence_band",
     "detect_message_level_label_gaps",
