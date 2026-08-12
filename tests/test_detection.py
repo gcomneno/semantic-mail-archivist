@@ -1,6 +1,6 @@
 import unittest
 
-from semantic_mail_archivist import ContextStatus, MessageSnapshot, ThreadSnapshot
+from semantic_mail_archivist import ContextStatus, LabelClass, MessageSnapshot, ThreadSnapshot
 from semantic_mail_archivist.adapters import GmailLabelClassifier
 from semantic_mail_archivist.detection import detect_message_level_label_gaps
 
@@ -50,11 +50,18 @@ class MessageLevelGapDetectionTests(unittest.TestCase):
 
     def test_system_only_thread_does_not_create_false_positive(self):
         candidates = self.detect(
-            MessageSnapshot("m1", ("INBOX", "IMPORTANT")),
+            MessageSnapshot("m1", ("INBOX", "IMPORTANT", "CHAT")),
             MessageSnapshot("m2", ("CATEGORY_UPDATES", "UNREAD")),
         )
 
         self.assertEqual(candidates, ())
+
+    def test_provider_system_labels_can_be_supplied_by_adapter_metadata(self):
+        classifier = GmailLabelClassifier(
+            system_labels=frozenset({"INBOX", "PROVIDER_RESERVED"})
+        )
+
+        self.assertEqual(classifier.classify("PROVIDER_RESERVED"), LabelClass.SYSTEM)
 
     def test_attachment_flag_is_preserved_on_gap_candidate(self):
         candidates = self.detect(
