@@ -20,6 +20,15 @@ from .model import (
     MessageSnapshot,
     ThreadSnapshot,
 )
+from .obsolescence import (
+    ObsolescenceAssessment,
+    ObsolescenceClass,
+    ObsolescenceConflict,
+    ObsolescenceContext,
+    ObsolescenceEvidence,
+    ObsolescenceRecommendation,
+    assess_message_obsolescence,
+)
 from .protection import (
     DestructiveProtectionGate,
     DestructiveProtectionGateResult,
@@ -70,6 +79,12 @@ __all__ = [
     "MessageSnapshot",
     "MutationAuthorization",
     "MutationClass",
+    "ObsolescenceAssessment",
+    "ObsolescenceClass",
+    "ObsolescenceConflict",
+    "ObsolescenceContext",
+    "ObsolescenceEvidence",
+    "ObsolescenceRecommendation",
     "PlannedAction",
     "ProtectedDomain",
     "ProtectedDomainAssessment",
@@ -81,6 +96,7 @@ __all__ = [
     "SafetyGateResult",
     "ThreadSnapshot",
     "assess_document_significance",
+    "assess_message_obsolescence",
     "build_dry_run_report",
     "confidence_band",
     "detect_message_level_label_gaps",
