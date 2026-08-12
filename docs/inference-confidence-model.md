@@ -23,7 +23,7 @@ Confidence bands match `docs/classification-safety-model.md`:
 
 The number is an **explainable policy score**, not a statistically calibrated probability. A score of `0.93` means the policy weights produce strong coherent evidence; it does not claim a measured 93% probability of correctness.
 
-Classification still remains separate from mutation authorization. Even a `HIGH` inference does not grant permission to write to a mailbox.
+Classification remains separate from mutation authorization. Even a `HIGH` inference does not grant permission to write to a mailbox.
 
 ## Input boundary
 
@@ -66,9 +66,7 @@ Issue #3 deliberately does not prescribe how hints are produced. Future analyzer
 
 Issue #3 itself selects no LLM or external classification provider.
 
-## Hard refusal conditions
-
-Some conflicts are stronger than additive scoring.
+## Hard refusal and ambiguity rules
 
 ### Competing thread semantic labels
 
@@ -85,7 +83,7 @@ No thread label is guessed.
 
 ### Direct semantic incompatibility
 
-If `semantic_label_hints` are present but do not include the single stable thread label:
+If semantic hints are present but do not include the single stable thread label:
 
 ```text
 proposed_label: null
@@ -95,6 +93,19 @@ conflict: direct_semantic_hint_conflicts_with_thread
 ```
 
 This follows the issue #1 rule that message-level semantic evidence may override weaker thread context.
+
+### Ambiguous direct semantic hints
+
+If the target hints include the stable thread label **and** one or more competing alternatives, the thread label does not receive the direct-semantic bonus.
+
+Instead:
+
+```text
+contribution: -0.15
+conflict: ambiguous_direct_semantic_hints
+```
+
+This normally downgrades an otherwise strong thread proposal into `MEDIUM`, preserving it for review without presenting direct ambiguity as HIGH-confidence agreement.
 
 ## Initial scoring policy
 
@@ -110,7 +121,8 @@ When exactly one stable surrounding semantic label remains and no hard veto appl
 | normalized subject differs from all supporters | `-0.10` | topic discontinuity |
 | non-owner correspondent overlap with every supporter | `+0.05` | relationship continuity |
 | no non-owner correspondent overlap with any supporter | `-0.10` | relationship discontinuity |
-| target semantic hint includes proposed label | `+0.12` | direct semantic compatibility |
+| unique target semantic hint matches proposed label | `+0.12` | unambiguous direct semantic compatibility |
+| target hints include proposed label plus alternatives | `-0.15` | direct semantic ambiguity |
 | attachment present | `0.00` | neutral until document significance exists |
 
 The score is normalized into `[0.00, 1.00]` and rounded to three decimal places.
@@ -121,7 +133,7 @@ If clamping changes the raw score, an explicit `score_clamp` evidence item recor
 
 Attachment presence alone does not mean that an attachment is a significant document or that it supports a semantic label.
 
-Issue #3 therefore records attachment presence with contribution `0.00` until issue #5 introduces document-significance evidence.
+Issue #3 records attachment presence with contribution `0.00` until issue #5 introduces document-significance evidence.
 
 This prevents unsupported reasoning such as:
 
@@ -139,13 +151,7 @@ MEDIUM -> proposed label may be returned for review
 LOW    -> proposed label is suppressed
 ```
 
-A LOW result deliberately becomes:
-
-```text
-proposed_label: null
-```
-
-This is a successful refusal, not an inference error.
+A LOW result deliberately becomes `proposed_label: null`. This is a successful refusal, not an inference error.
 
 ## Output model
 
@@ -183,14 +189,7 @@ normalized subject: same
 non-owner correspondent: same
 ```
 
-Expected:
-
-```text
-proposed_label: Personal/Housing
-confidence_band: HIGH
-```
-
-The initial policy produces at least `0.93` without requiring a semantic hint.
+Expected: `Personal/Housing`, `HIGH`, at least `0.93`.
 
 ### B — Competing classifications
 
@@ -211,7 +210,16 @@ Target semantic hint: Work/Finance
 
 Expected: no proposed label, LOW confidence, `direct_semantic_hint_conflicts_with_thread`.
 
-### D — One supporting message only
+### D — Ambiguous target semantics
+
+```text
+Thread evidence: Work/Project
+Target semantic hints: Work/Project, Work/Finance
+```
+
+Expected: proposal may remain `Work/Project`, but confidence is downgraded to MEDIUM and `ambiguous_direct_semantic_hints` is reported.
+
+### E — One supporting message only
 
 ```text
 Message 1: Work/Vendor
@@ -219,15 +227,9 @@ Message 2: no semantic label
 no additional continuity metadata
 ```
 
-Expected:
+Expected: `Work/Vendor`, score `0.60`, MEDIUM.
 
-```text
-proposed_label: Work/Vendor
-confidence_score: 0.60
-confidence_band: MEDIUM
-```
-
-### E — Weak and discontinuous context
+### F — Weak and discontinuous context
 
 ```text
 supporting label: Work/Vendor
@@ -237,9 +239,9 @@ supporting correspondent: vendor
 target correspondent: friend
 ```
 
-Expected: no proposed label, LOW confidence, with both subject and correspondent discontinuity conflicts.
+Expected: no proposed label, LOW confidence, with subject and correspondent discontinuity conflicts.
 
-### F — Positive direct semantic compatibility
+### G — Positive direct semantic compatibility
 
 ```text
 Thread evidence: Personal/Insurance
@@ -249,9 +251,9 @@ Target has attachment: yes
 
 Expected: HIGH proposal; attachment contribution remains `0.00`.
 
-### G — Score normalization remains explainable
+### H — Score normalization remains explainable
 
-A synthetic case that activates enough positive signals to exceed `1.00` must return:
+A case that activates enough positive signals to exceed `1.00` must return:
 
 ```text
 confidence_score: 1.00
@@ -259,23 +261,13 @@ evidence includes: score_clamp
 sum(evidence contributions): 1.00
 ```
 
-The clamping step is therefore visible rather than hidden.
+The clamping step is visible rather than hidden.
 
 ## Read-only safety boundary
 
 The inference engine is mutation class **M0 — Read-only**.
 
-It does not:
-
-- call Gmail or another provider;
-- create labels;
-- apply labels;
-- remove or replace labels;
-- archive messages;
-- change operational state;
-- inspect document contents;
-- move messages to Trash;
-- permanently delete anything.
+It does not call Gmail or another provider, create/apply/remove labels, archive messages, change operational state, inspect document contents, move messages to Trash, or permanently delete anything.
 
 Its output is evidence for later review and dry-run workflows only.
 
