@@ -76,11 +76,12 @@ def infer_label_from_thread(
     label_evidence = candidate.surrounding_evidence[0]
     proposed = label_evidence.label
     supporter_ids = set(label_evidence.supporting_message_ids)
+    semantic_hints = set(target.semantic_label_hints)
 
     # Direct semantic evidence is allowed to veto thread inheritance. The hints
     # are provider-independent upstream evidence; this module does not generate
     # them and does not depend on a particular classifier or LLM.
-    if target.semantic_label_hints and proposed not in target.semantic_label_hints:
+    if semantic_hints and proposed not in semantic_hints:
         conflicts.append("direct_semantic_hint_conflicts_with_thread")
         signals.append(
             InferenceEvidence(
@@ -230,13 +231,26 @@ def infer_label_from_thread(
                     )
                 )
 
-    if proposed in target.semantic_label_hints:
+    if semantic_hints == {proposed}:
         score += 0.12
         signals.append(
             InferenceEvidence(
                 signal="direct_semantic_compatibility",
-                detail=f"Target semantic hints explicitly include {proposed!r}.",
+                detail=f"Target semantic hints uniquely support {proposed!r}.",
                 contribution=0.12,
+            )
+        )
+    elif proposed in semantic_hints and len(semantic_hints) > 1:
+        score -= 0.15
+        conflicts.append("ambiguous_direct_semantic_hints")
+        signals.append(
+            InferenceEvidence(
+                signal="direct_semantic_compatibility",
+                detail=(
+                    "Target semantic hints include the thread label but also contain "
+                    "competing semantic alternatives."
+                ),
+                contribution=-0.15,
             )
         )
 
