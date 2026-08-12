@@ -17,11 +17,20 @@ class ContextStatus(str, Enum):
     CONFLICTING = "conflicting"
 
 
+class ConfidenceBand(str, Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
 @dataclass(frozen=True)
 class MessageSnapshot:
     message_id: str
     labels: tuple[str, ...] = ()
     has_attachment: bool = False
+    normalized_subject: str | None = None
+    participants: tuple[str, ...] = ()
+    semantic_label_hints: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -52,3 +61,21 @@ class LabelGapCandidate:
     has_attachment: bool
     context_status: ContextStatus
     surrounding_evidence: tuple[LabelEvidence, ...]
+
+
+@dataclass(frozen=True)
+class InferenceEvidence:
+    signal: str
+    detail: str
+    contribution: float
+
+
+@dataclass(frozen=True)
+class LabelInference:
+    thread_id: str
+    message_id: str
+    proposed_label: str | None
+    confidence_score: float
+    confidence_band: ConfidenceBand
+    evidence: tuple[InferenceEvidence, ...]
+    conflicts: tuple[str, ...]
