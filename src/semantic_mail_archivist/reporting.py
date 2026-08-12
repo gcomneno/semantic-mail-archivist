@@ -34,6 +34,10 @@ class PlannedAction(str, Enum):
 class MutationClass(str, Enum):
     M0 = "M0"
     M1 = "M1"
+    M2 = "M2"
+    M3 = "M3"
+    M4 = "M4"
+    M5 = "M5"
 
 
 class MutationAuthorization(str, Enum):

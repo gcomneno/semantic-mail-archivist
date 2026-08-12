@@ -84,6 +84,28 @@ from .audit import (
 )
 
 
+from .change_log import (
+    CHANGE_LOG_SCHEMA_VERSION,
+    ChangeAuditRecord,
+    ChangeEvidence,
+    DryRunProposalReference,
+    MailboxStateSnapshot,
+    MutationAction,
+    MutationExecutionMode,
+    MutationInitiator,
+    MutationResultStatus,
+    ProviderResultMetadata,
+    RollbackMetadata,
+    SafetyGateDecision,
+    SafetyGateRecord,
+    append_change_record_jsonl,
+    correlation_id_for_dry_run,
+    render_change_log_jsonl,
+    render_change_record_json,
+    render_change_record_text,
+)
+
+
 __all__ = [
     "AttachmentDisposition",
     "AttachmentSnapshot",
@@ -155,4 +177,22 @@ __all__ = [
     "build_mailbox_audit",
     "render_mailbox_audit_json",
     "render_mailbox_audit_text",
+    "CHANGE_LOG_SCHEMA_VERSION",
+    "ChangeAuditRecord",
+    "ChangeEvidence",
+    "DryRunProposalReference",
+    "MailboxStateSnapshot",
+    "MutationAction",
+    "MutationExecutionMode",
+    "MutationInitiator",
+    "MutationResultStatus",
+    "ProviderResultMetadata",
+    "RollbackMetadata",
+    "SafetyGateDecision",
+    "SafetyGateRecord",
+    "append_change_record_jsonl",
+    "correlation_id_for_dry_run",
+    "render_change_log_jsonl",
+    "render_change_record_json",
+    "render_change_record_text",
 ]
