@@ -12,6 +12,8 @@ The project must prefer explainable, reversible, auditable behavior over aggress
 
 Classification and mutation are separate concerns. A system may be confident that a message belongs to a category without being authorized to change the mailbox. Destructive actions require a materially higher confidence standard than non-destructive classification.
 
+The canonical foundation policy for these decisions is [`classification-safety-model.md`](classification-safety-model.md). Implementations must conform to that contract rather than inventing safety policy inside provider adapters, classifiers, or write workflows.
+
 ## Safety invariants
 
 1. Existing user taxonomy is evidence, not noise to normalize away.
