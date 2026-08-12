@@ -85,6 +85,37 @@ class LabelInferenceTests(unittest.TestCase):
             result.conflicts,
         )
 
+    def test_ambiguous_direct_hints_downgrade_to_review(self):
+        thread = ThreadSnapshot(
+            "thread-ambiguous-hints",
+            (
+                MessageSnapshot(
+                    "m1",
+                    ("Work/Project",),
+                    normalized_subject="roadmap",
+                    correspondents=("team@example.test",),
+                ),
+                MessageSnapshot(
+                    "m2",
+                    normalized_subject="roadmap",
+                    correspondents=("team@example.test",),
+                    semantic_label_hints=("Work/Project", "Work/Finance"),
+                ),
+                MessageSnapshot(
+                    "m3",
+                    ("Work/Project",),
+                    normalized_subject="roadmap",
+                    correspondents=("team@example.test",),
+                ),
+            ),
+        )
+
+        result = infer_label_from_thread(thread, self.candidate_for(thread))
+
+        self.assertEqual(result.proposed_label, "Work/Project")
+        self.assertEqual(result.confidence_band, ConfidenceBand.MEDIUM)
+        self.assertIn("ambiguous_direct_semantic_hints", result.conflicts)
+
     def test_single_support_is_medium_not_high(self):
         thread = ThreadSnapshot(
             "thread-4",
