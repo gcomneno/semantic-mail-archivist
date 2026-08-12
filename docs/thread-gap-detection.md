@@ -28,7 +28,7 @@ MessageSnapshot
 
 Provider-specific label semantics are supplied through a `LabelClassifier` adapter.
 
-The initial Gmail adapter recognizes Gmail system labels separately from user labels and accepts an explicit set of operational user labels.
+The initial Gmail adapter recognizes well-known Gmail system labels separately from user labels and accepts explicit operational user labels. Its system-label set is configurable so a future Gmail API integration can supply provider metadata rather than treating the built-in list as permanent truth.
 
 ## Detection rule
 
@@ -101,10 +101,11 @@ The automated tests cover:
 
 1. a clean thread with the same semantic label before and after an unlabelled reply;
 2. an unlabelled message surrounded by competing semantic labels;
-3. a thread containing only Gmail/system labels;
-4. an unlabelled message with an attachment;
-5. a message that is already semantically labelled;
-6. an operational-only label that must not hide a semantic gap.
+3. a thread containing only Gmail/system labels, including `CHAT`;
+4. provider-supplied system-label metadata;
+5. an unlabelled message with an attachment;
+6. a message that is already semantically labelled;
+7. an operational-only label that must not hide a semantic gap.
 
 All scenarios are synthetic and contain no mailbox-derived content.
 
