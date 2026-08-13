@@ -37,6 +37,11 @@ from .provider import (
     ProviderOperationError,
     ProviderReadAdapter,
 )
+from .repair_runtime import (
+    build_provider_mailbox_dry_run,
+    render_provider_mailbox_dry_run_json,
+    render_provider_mailbox_dry_run_text,
+)
 
 
 class CliExitCode(IntEnum):
@@ -63,6 +68,8 @@ class CliInvocation:
     mailbox: CliMailboxConfig
     audit_max_threads: int | None = None
     audit_thread_page_size: int | None = None
+    repair_max_threads: int | None = None
+    repair_thread_page_size: int | None = None
 
     @property
     def read_only(self) -> bool:
@@ -337,8 +344,8 @@ class ShellOnlyRuntime:
 class ApplicationRuntime(ShellOnlyRuntime):
     """Current local application runtime.
 
-    Issue #28 wires only `audit`. Repair behavior intentionally remains the
-    issue #27 shell until the later Phase 2 repair issues.
+    `audit` and `repair --dry-run` use real read-only provider orchestration.
+    Explicit repair writes remain disabled.
     """
 
     def audit(
@@ -429,6 +436,97 @@ class ApplicationRuntime(ShellOnlyRuntime):
             ),
             machine_output=render_mailbox_audit_json(
                 execution.report
+            ),
+        )
+
+    def repair_dry_run(
+        self,
+        invocation: CliInvocation,
+        dependencies: CliDependencies,
+    ) -> CliCommandResult:
+        if not invocation.read_only:
+            raise CliExecutionError(
+                CliExitCode.WRITE_DISABLED,
+                "Repair dry-run cannot enter write mode.",
+            )
+
+        if (
+            invocation.repair_max_threads is None
+            and invocation.output_destination is None
+        ):
+            raise CliExecutionError(
+                CliExitCode.CONFIGURATION_ERROR,
+                (
+                    "Full-mailbox repair dry-run requires an explicit "
+                    "local output destination."
+                ),
+            )
+
+        try:
+            provider = dependencies.provider_for(
+                invocation.mailbox
+            )
+            user_classifier = (
+                dependencies.label_classifier_for(
+                    invocation.mailbox
+                )
+            )
+
+            execution = build_provider_mailbox_dry_run(
+                provider,
+                user_classifier,
+                max_threads=invocation.repair_max_threads,
+                thread_page_size=(
+                    invocation.repair_thread_page_size
+                ),
+            )
+
+        except CliExecutionError:
+            raise
+
+        except GmailAuthError as exc:
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                exc.safe_detail,
+            ) from None
+
+        except ProviderOperationError as exc:
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                exc.safe_detail,
+            ) from None
+
+        except (ImportError, ModuleNotFoundError):
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                (
+                    "Gmail runtime dependencies are unavailable; "
+                    "install the package with the gmail extra."
+                ),
+            ) from None
+
+        except ValueError:
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                (
+                    "Mailbox repair dry-run could not continue because "
+                    "provider facts were invalid or internally inconsistent."
+                ),
+            ) from None
+
+        return CliCommandResult(
+            exit_code=CliExitCode.OK,
+            status=(
+                "complete"
+                if execution.complete
+                else "incomplete"
+            ),
+            human_message="Mailbox repair dry-run completed.",
+            human_output=render_provider_mailbox_dry_run_text(
+                execution
+            ),
+            machine_output=render_provider_mailbox_dry_run_json(
+                execution
             ),
         )
 
@@ -534,7 +632,7 @@ def build_parser() -> argparse.ArgumentParser:
     repair = subparsers.add_parser(
         "repair",
         help=(
-            "Repair command shell; defaults to dry-run."
+            "Run read-only repair planning; defaults to dry-run."
         ),
     )
 
@@ -551,8 +649,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--apply",
         action="store_true",
         help=(
-            "Explicit write intent. Write execution is not "
-            "implemented by issue #27."
+            "Explicit write intent. Write execution remains "
+            "disabled in issue #29."
+        ),
+    )
+
+    repair.add_argument(
+        "--max-threads",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help=(
+            "Bound dry-run analysis to at most N provider threads "
+            "for development/road-test use. Omit for full mailbox."
+        ),
+    )
+    repair.add_argument(
+        "--thread-page-size",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help=(
+            "Provider thread-list page size hint for read-only "
+            "dry-run ingestion."
         ),
     )
 
@@ -606,15 +725,41 @@ def _invocation_from(
         output_format=output_format,
         output_destination=output_destination,
         mailbox=config.mailbox,
-        audit_max_threads=getattr(
-            parsed,
-            "max_threads",
-            None,
+        audit_max_threads=(
+            getattr(
+                parsed,
+                "max_threads",
+                None,
+            )
+            if parsed.command == "audit"
+            else None
         ),
-        audit_thread_page_size=getattr(
-            parsed,
-            "thread_page_size",
-            None,
+        audit_thread_page_size=(
+            getattr(
+                parsed,
+                "thread_page_size",
+                None,
+            )
+            if parsed.command == "audit"
+            else None
+        ),
+        repair_max_threads=(
+            getattr(
+                parsed,
+                "max_threads",
+                None,
+            )
+            if parsed.command == "repair"
+            else None
+        ),
+        repair_thread_page_size=(
+            getattr(
+                parsed,
+                "thread_page_size",
+                None,
+            )
+            if parsed.command == "repair"
+            else None
         ),
     )
 
