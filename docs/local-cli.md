@@ -2,8 +2,9 @@
 
 Issue #27 turns the Python package into an executable local application shell.
 
-It deliberately does **not** orchestrate a real Gmail audit, repair dry-run or
-write execution yet.
+The `audit` command is now wired to the real read-only provider path. Repair
+dry-run and write execution remain intentionally unwired until later Phase 2
+issues.
 
 ## Console entry point
 
@@ -54,9 +55,13 @@ defined by the authentication layer from issue #25.
 
 ## Commands
 
-Read-only audit shell:
+Read-only mailbox audit:
 
     semantic-mail-archivist --config ./config.toml audit
+
+A bounded road-test can limit provider traversal:
+
+    semantic-mail-archivist         --config ./config.toml         audit         --max-threads 10
 
 Read-only repair planning shell:
 
