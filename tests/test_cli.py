@@ -8,6 +8,7 @@ from semantic_mail_archivist.cli import (
     CliDependencies,
     CliExitCode,
     CliOperatingMode,
+    ShellOnlyRuntime,
     main,
 )
 from semantic_mail_archivist.provider import (
@@ -350,7 +351,7 @@ account = "fixture-account"
             "",
         )
 
-    def test_default_runtime_never_resolves_provider(self):
+    def test_shell_only_runtime_never_resolves_provider(self):
         calls = []
 
         def provider_factory(mailbox):
@@ -371,6 +372,7 @@ account = "fixture-account"
                 str(self.config),
                 "audit",
             ],
+            runtime=ShellOnlyRuntime(),
             dependencies=dependencies,
         )
 

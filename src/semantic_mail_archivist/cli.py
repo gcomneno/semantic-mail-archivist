@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 from contextlib import redirect_stderr, redirect_stdout
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 import io
 import json
+import os
 from pathlib import Path
 import sys
+import tempfile
 from typing import Callable, Mapping, Protocol, Sequence, TextIO
 
 from .cli_config import (
@@ -18,7 +20,23 @@ from .cli_config import (
     default_cli_config_path,
     load_cli_config,
 )
-from .provider import ProviderReadAdapter
+from .adapters.gmail import GmailLabelClassifier
+from .audit import (
+    render_mailbox_audit_json,
+    render_mailbox_audit_text,
+)
+from .audit_runtime import build_provider_mailbox_audit
+from .gmail_auth import (
+    GmailAuthError,
+    GmailAuthManager,
+    GmailAuthorizationMode,
+)
+from .gmail_provider import GmailReadAdapter
+from .model import LabelClassifier
+from .provider import (
+    ProviderOperationError,
+    ProviderReadAdapter,
+)
 
 
 class CliExitCode(IntEnum):
@@ -43,6 +61,8 @@ class CliInvocation:
     output_format: CliOutputFormat
     output_destination: Path | None
     mailbox: CliMailboxConfig
+    audit_max_threads: int | None = None
+    audit_thread_page_size: int | None = None
 
     @property
     def read_only(self) -> bool:
@@ -64,19 +84,96 @@ ProviderFactory = Callable[
     ProviderReadAdapter,
 ]
 
+LabelClassifierFactory = Callable[
+    [CliMailboxConfig],
+    LabelClassifier,
+]
+
+
+def gmail_read_provider_factory(
+    mailbox: CliMailboxConfig,
+    *,
+    auth_manager_factory: Callable[[], GmailAuthManager] = GmailAuthManager,
+    adapter_factory: Callable[
+        [GmailAuthManager, object],
+        ProviderReadAdapter,
+    ] | None = None,
+) -> ProviderReadAdapter:
+    """Create the real Gmail provider using READ_ONLY authorization only.
+
+    `mailbox.account` is the local descriptive alias from the CLI
+    configuration. Issue #28 still uses the single private Gmail auth store
+    established by issue #25; the alias is never treated as an email address
+    or credential.
+    """
+
+    if mailbox.provider != "gmail":
+        raise ValueError(
+            "gmail_read_provider_factory requires provider='gmail'"
+        )
+
+    auth_manager = auth_manager_factory()
+
+    session = auth_manager.authorize(
+        GmailAuthorizationMode.READ_ONLY
+    )
+
+    builder = (
+        adapter_factory
+        if adapter_factory is not None
+        else GmailReadAdapter.from_auth_manager
+    )
+
+    return builder(
+        auth_manager,
+        session,
+    )
+
+
+def _gmail_label_classifier_factory(
+    mailbox: CliMailboxConfig,
+) -> LabelClassifier:
+    if mailbox.provider != "gmail":
+        raise ValueError(
+            "Gmail classifier requires provider='gmail'"
+        )
+
+    # ProviderAwareLabelClassifier remains authoritative for Gmail system
+    # ownership. GmailLabelClassifier supplies the already-established
+    # interpretation of user-owned labels.
+    return GmailLabelClassifier()
+
 
 @dataclass(frozen=True)
 class CliDependencies:
-    """Dependency-injection seam for future command orchestration."""
+    """Dependency-injection seams for provider I/O and user-label semantics."""
 
     provider_factories: Mapping[
         str,
         ProviderFactory,
     ]
+    label_classifier_factories: Mapping[
+        str,
+        LabelClassifierFactory,
+    ] = field(default_factory=dict)
 
     @classmethod
     def empty(cls) -> "CliDependencies":
-        return cls(provider_factories={})
+        return cls(
+            provider_factories={},
+            label_classifier_factories={},
+        )
+
+    @classmethod
+    def default(cls) -> "CliDependencies":
+        return cls(
+            provider_factories={
+                "gmail": gmail_read_provider_factory,
+            },
+            label_classifier_factories={
+                "gmail": _gmail_label_classifier_factory,
+            },
+        )
 
     def provider_for(
         self,
@@ -94,12 +191,33 @@ class CliDependencies:
 
         return factory(mailbox)
 
+    def label_classifier_for(
+        self,
+        mailbox: CliMailboxConfig,
+    ) -> LabelClassifier:
+        factory = self.label_classifier_factories.get(
+            mailbox.provider
+        )
+
+        if factory is None:
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                (
+                    "Configured provider has no user-label "
+                    "classification adapter."
+                ),
+            )
+
+        return factory(mailbox)
+
 
 @dataclass(frozen=True)
 class CliCommandResult:
     exit_code: CliExitCode
     status: str
     human_message: str
+    human_output: str | None = None
+    machine_output: str | None = None
 
     def __post_init__(self) -> None:
         if not self.status.strip():
@@ -110,6 +228,22 @@ class CliCommandResult:
         if not self.human_message.strip():
             raise ValueError(
                 "human_message cannot be empty"
+            )
+
+        if (
+            self.human_output is not None
+            and not self.human_output.strip()
+        ):
+            raise ValueError(
+                "human_output cannot be empty when supplied"
+            )
+
+        if (
+            self.machine_output is not None
+            and not self.machine_output.strip()
+        ):
+            raise ValueError(
+                "machine_output cannot be empty when supplied"
             )
 
 
@@ -200,8 +334,123 @@ class ShellOnlyRuntime:
         )
 
 
+class ApplicationRuntime(ShellOnlyRuntime):
+    """Current local application runtime.
+
+    Issue #28 wires only `audit`. Repair behavior intentionally remains the
+    issue #27 shell until the later Phase 2 repair issues.
+    """
+
+    def audit(
+        self,
+        invocation: CliInvocation,
+        dependencies: CliDependencies,
+    ) -> CliCommandResult:
+        if not invocation.read_only:
+            raise CliExecutionError(
+                CliExitCode.WRITE_DISABLED,
+                "Audit cannot enter write mode.",
+            )
+
+        if (
+            invocation.audit_max_threads is None
+            and invocation.output_destination is None
+        ):
+            raise CliExecutionError(
+                CliExitCode.CONFIGURATION_ERROR,
+                (
+                    "Full-mailbox audit requires an explicit "
+                    "local output destination."
+                ),
+            )
+
+        try:
+            provider = dependencies.provider_for(
+                invocation.mailbox
+            )
+            user_classifier = (
+                dependencies.label_classifier_for(
+                    invocation.mailbox
+                )
+            )
+
+            execution = build_provider_mailbox_audit(
+                provider,
+                user_classifier,
+                max_threads=invocation.audit_max_threads,
+                thread_page_size=(
+                    invocation.audit_thread_page_size
+                ),
+            )
+
+        except CliExecutionError:
+            raise
+
+        except GmailAuthError as exc:
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                exc.safe_detail,
+            ) from None
+
+        except ProviderOperationError as exc:
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                exc.safe_detail,
+            ) from None
+
+        except (ImportError, ModuleNotFoundError):
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                (
+                    "Gmail runtime dependencies are unavailable; "
+                    "install the package with the gmail extra."
+                ),
+            ) from None
+
+        except ValueError:
+            raise CliExecutionError(
+                CliExitCode.PROVIDER_UNAVAILABLE,
+                (
+                    "Mailbox audit could not continue because provider "
+                    "facts were invalid or internally inconsistent."
+                ),
+            ) from None
+
+        return CliCommandResult(
+            exit_code=CliExitCode.OK,
+            status=(
+                "complete"
+                if execution.complete
+                else "incomplete"
+            ),
+            human_message="Mailbox audit completed.",
+            human_output=render_mailbox_audit_text(
+                execution.report
+            ),
+            machine_output=render_mailbox_audit_json(
+                execution.report
+            ),
+        )
+
+
 class _Parser(argparse.ArgumentParser):
     """Argparse parser with deterministic error returns through main()."""
+
+
+def _positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "must be a positive integer"
+        ) from None
+
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError(
+            "must be a positive integer"
+        )
+
+    return parsed
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -255,12 +504,31 @@ def build_parser() -> argparse.ArgumentParser:
     audit = subparsers.add_parser(
         "audit",
         help=(
-            "Read-only audit command shell "
-            "(real orchestration added later)."
+            "Run the existing read-only mailbox audit."
         ),
     )
     audit.set_defaults(
         command_mode=CliOperatingMode.READ_ONLY,
+    )
+    audit.add_argument(
+        "--max-threads",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help=(
+            "Bound the audit to at most N provider threads for "
+            "development/road-test use. Omit for full mailbox."
+        ),
+    )
+    audit.add_argument(
+        "--thread-page-size",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help=(
+            "Provider thread-list page size hint. "
+            "This never changes audit write safety."
+        ),
     )
 
     repair = subparsers.add_parser(
@@ -338,6 +606,16 @@ def _invocation_from(
         output_format=output_format,
         output_destination=output_destination,
         mailbox=config.mailbox,
+        audit_max_threads=getattr(
+            parsed,
+            "max_threads",
+            None,
+        ),
+        audit_thread_page_size=getattr(
+            parsed,
+            "thread_page_size",
+            None,
+        ),
     )
 
 
@@ -383,6 +661,12 @@ def _machine_payload(
     }
 
 
+def _normalized_rendered_output(
+    rendered: str,
+) -> str:
+    return rendered.rstrip("\n") + "\n"
+
+
 def _render(
     invocation: CliInvocation,
     result: CliCommandResult,
@@ -391,6 +675,11 @@ def _render(
         invocation.output_format
         is CliOutputFormat.JSON
     ):
+        if result.machine_output is not None:
+            return _normalized_rendered_output(
+                result.machine_output
+            )
+
         return json.dumps(
             _machine_payload(
                 invocation,
@@ -400,11 +689,70 @@ def _render(
             separators=(",", ":"),
         ) + "\n"
 
+    if result.human_output is not None:
+        return _normalized_rendered_output(
+            result.human_output
+        )
+
     return (
         f"semantic-mail-archivist: {result.human_message}\n"
         f"mode: {invocation.operating_mode}\n"
         f"status: {result.status}\n"
     )
+
+
+def _atomic_private_output_write(
+    destination: Path,
+    rendered: str,
+) -> None:
+    destination = destination.expanduser()
+    parent = destination.parent
+
+    parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=parent,
+    )
+    temporary = Path(temporary_name)
+
+    try:
+        with os.fdopen(
+            descriptor,
+            "w",
+            encoding="utf-8",
+        ) as handle:
+            handle.write(rendered)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        os.chmod(
+            temporary,
+            0o600,
+        )
+
+        os.replace(
+            temporary,
+            destination,
+        )
+
+        os.chmod(
+            destination,
+            0o600,
+        )
+
+    except Exception:
+        try:
+            temporary.unlink(
+                missing_ok=True
+            )
+        except OSError:
+            pass
+        raise
 
 
 def _write_output(
@@ -419,13 +767,9 @@ def _write_output(
         return
 
     try:
-        destination.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-        destination.write_text(
+        _atomic_private_output_write(
+            destination,
             rendered,
-            encoding="utf-8",
         )
     except OSError:
         raise CliExecutionError(
@@ -483,12 +827,12 @@ def main(
         active_runtime = (
             runtime
             if runtime is not None
-            else ShellOnlyRuntime()
+            else ApplicationRuntime()
         )
         active_dependencies = (
             dependencies
             if dependencies is not None
-            else CliDependencies.empty()
+            else CliDependencies.default()
         )
 
         result = _dispatch(
