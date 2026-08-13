@@ -159,7 +159,7 @@ the operational-layer contract.
 
 ## CLI target
 
-The conceptual future entrypoint remains:
+The installed CLI shell exposes the audit entrypoint:
 
     semantic-mail-archivist audit
 
