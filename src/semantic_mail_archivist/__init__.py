@@ -106,6 +106,22 @@ from .change_log import (
 )
 
 
+
+from .gmail_auth import (
+    GMAIL_READONLY_SCOPE,
+    GMAIL_MODIFY_SCOPE,
+    GmailAccountSafeId,
+    GmailAuthError,
+    GmailAuthErrorCode,
+    GmailAuthManager,
+    GmailAuthPaths,
+    GmailAuthSession,
+    GmailAuthorizationMode,
+    GmailOAuthBackend,
+    GoogleInstalledAppOAuthBackend,
+    scopes_for_mode,
+)
+
 from .provider import (
     ProviderDescriptor,
     ProviderErrorCode,
@@ -214,6 +230,18 @@ __all__ = [
     "render_change_log_jsonl",
     "render_change_record_json",
     "render_change_record_text",
+    "GMAIL_READONLY_SCOPE",
+    "GMAIL_MODIFY_SCOPE",
+    "GmailAccountSafeId",
+    "GmailAuthError",
+    "GmailAuthErrorCode",
+    "GmailAuthManager",
+    "GmailAuthPaths",
+    "GmailAuthSession",
+    "GmailAuthorizationMode",
+    "GmailOAuthBackend",
+    "GoogleInstalledAppOAuthBackend",
+    "scopes_for_mode",
     "ProviderDescriptor",
     "ProviderErrorCode",
     "ProviderIdentity",

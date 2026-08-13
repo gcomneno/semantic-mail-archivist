@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Local Google OAuth artifacts — defense in depth.
+# Normal auth state lives under XDG config/state directories outside the repo.
+credentials.json
+token.json
+gmail-oauth-client.json
+read-only-token.json
+m1-write-token.json
+account-id.key
+.semantic-mail-archivist/
