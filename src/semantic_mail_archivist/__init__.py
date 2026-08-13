@@ -122,6 +122,24 @@ from .gmail_auth import (
     scopes_for_mode,
 )
 
+
+
+from .gmail_provider import (
+    GMAIL_MESSAGE_STRUCTURE_FIELDS,
+    GMAIL_MIME_MAX_DEPTH,
+    GmailReadAdapter,
+    GmailReadRetryPolicy,
+    GmailReadTransport,
+    GoogleGmailReadTransport,
+)
+
+from .ingestion import (
+    IngestedMessageAttachments,
+    MailboxIngestionResult,
+    ProviderAwareLabelClassifier,
+    ingest_provider_mailbox,
+)
+
 from .provider import (
     ProviderDescriptor,
     ProviderErrorCode,
@@ -242,6 +260,16 @@ __all__ = [
     "GmailOAuthBackend",
     "GoogleInstalledAppOAuthBackend",
     "scopes_for_mode",
+    "GMAIL_MESSAGE_STRUCTURE_FIELDS",
+    "GMAIL_MIME_MAX_DEPTH",
+    "GmailReadAdapter",
+    "GmailReadRetryPolicy",
+    "GmailReadTransport",
+    "GoogleGmailReadTransport",
+    "IngestedMessageAttachments",
+    "MailboxIngestionResult",
+    "ProviderAwareLabelClassifier",
+    "ingest_provider_mailbox",
     "ProviderDescriptor",
     "ProviderErrorCode",
     "ProviderIdentity",
