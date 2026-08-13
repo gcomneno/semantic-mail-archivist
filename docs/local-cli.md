@@ -2,9 +2,9 @@
 
 Issue #27 turns the Python package into an executable local application shell.
 
-The `audit` command is now wired to the real read-only provider path. Repair
-dry-run and write execution remain intentionally unwired until later Phase 2
-issues.
+The `audit` and `repair --dry-run` commands are now wired to the real
+read-only provider path. Explicit write execution remains intentionally
+disabled until later Phase 2 issues.
 
 ## Console entry point
 
@@ -63,22 +63,25 @@ A bounded road-test can limit provider traversal:
 
     semantic-mail-archivist         --config ./config.toml         audit         --max-threads 10
 
-Read-only repair planning shell:
+Read-only repair planning:
 
-    semantic-mail-archivist --config ./config.toml repair
+    semantic-mail-archivist         --config ./config.toml         repair         --max-threads 10
 
 or explicitly:
 
-    semantic-mail-archivist --config ./config.toml repair --dry-run
+    semantic-mail-archivist         --config ./config.toml         repair         --dry-run         --max-threads 10
 
 `repair` without a mode defaults to dry-run.
+
+An unbounded/full-mailbox repair dry-run requires an explicit local
+`--output` destination.
 
 Explicit write intent is command-specific:
 
     semantic-mail-archivist --config ./config.toml repair --apply
 
-Issue #27 does not execute writes. The default shell returns a stable
-`WRITE_DISABLED` exit status for `repair --apply`.
+Issue #29 still does not execute writes. The application runtime returns a
+stable `WRITE_DISABLED` exit status for `repair --apply`.
 
 There is no global `--apply` switch.
 
@@ -130,20 +133,22 @@ Observable command modes are:
 - `audit` -> `read_only`;
 - `repair` -> `read_only`;
 - `repair --dry-run` -> `read_only`;
-- `repair --apply` -> `write_requested`, then rejected by the #27 default
+- `repair --apply` -> `write_requested`, then rejected by the application
   runtime.
 
-No provider is instantiated by the default issue #27 runtime.
+Read-only `audit` and `repair --dry-run` resolve the configured provider.
+`repair --apply` is rejected before provider resolution.
 
 ## Dependency injection
 
 `CliDependencies` contains a provider-factory registry keyed by provider name.
 
-Future orchestration can resolve a provider through that registry. Tests can
-supply entirely synthetic provider factories without Gmail credentials or
-network operations.
+Read-only audit and repair orchestration resolve providers through that
+registry. Tests can supply entirely synthetic provider factories without Gmail
+credentials or network operations.
 
-The default shell does not resolve a provider at all.
+Label semantics use a separate injected classifier registry, keeping provider
+ownership distinct from the user's semantic taxonomy.
 
-This keeps argument parsing, configuration loading and output rendering
+Argument parsing, configuration loading and output rendering therefore remain
 separate from provider I/O and from domain/safety policy.
