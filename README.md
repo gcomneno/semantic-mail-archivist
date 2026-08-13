@@ -153,7 +153,7 @@ without forcing a replacement taxonomy on the user.
 
 ## MVP 0.1
 
-The first implementation should be a local, read-first CLI rather than a GUI.
+The first implementation is a local, read-first CLI rather than a GUI. The executable command shell is now available; real mailbox audit and repair orchestration are wired in later Phase 2 issues.
 
 ### Audit
 

@@ -11,3 +11,7 @@ read-only-token.json
 m1-write-token.json
 account-id.key
 .semantic-mail-archivist/
+
+# Python packaging artifacts
+build/
+*.egg-info/
