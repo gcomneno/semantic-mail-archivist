@@ -106,6 +106,25 @@ from .change_log import (
 )
 
 
+from .provider import (
+    ProviderDescriptor,
+    ProviderErrorCode,
+    ProviderIdentity,
+    ProviderLabelKind,
+    ProviderLabelSnapshot,
+    ProviderMessageSnapshot,
+    ProviderMessageState,
+    ProviderOperationError,
+    ProviderPage,
+    ProviderReadAdapter,
+    ProviderReadCapabilities,
+    ProviderReadCapability,
+    ProviderThreadRef,
+    ProviderWriteCapabilities,
+    ProviderWriteCapability,
+)
+
+
 __all__ = [
     "AttachmentDisposition",
     "AttachmentSnapshot",
@@ -195,4 +214,20 @@ __all__ = [
     "render_change_log_jsonl",
     "render_change_record_json",
     "render_change_record_text",
+    "ProviderDescriptor",
+    "ProviderErrorCode",
+    "ProviderIdentity",
+    "ProviderLabelKind",
+    "ProviderLabelSnapshot",
+    "ProviderMessageSnapshot",
+    "ProviderMessageState",
+    "ProviderOperationError",
+    "ProviderPage",
+    "ProviderReadAdapter",
+    "ProviderReadCapabilities",
+    "ProviderReadCapability",
+    "ProviderThreadRef",
+    "ProviderWriteCapabilities",
+    "ProviderWriteCapability",
+
 ]
