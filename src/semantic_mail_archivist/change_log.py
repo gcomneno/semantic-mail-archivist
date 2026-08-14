@@ -76,6 +76,14 @@ _ROLLBACK_ACTION = {
 }
 
 
+def mutation_class_for_action(
+    action: MutationAction,
+) -> MutationClass:
+    """Return the canonical mutation class owned by the change-log contract."""
+
+    return _ACTION_MUTATION_CLASS[action]
+
+
 def _require_nonempty(name: str, value: str) -> None:
     if not value.strip():
         raise ValueError(f"{name} cannot be empty")
@@ -423,7 +431,9 @@ class ChangeAuditRecord:
         if self.timestamp.tzinfo is None or self.timestamp.utcoffset() is None:
             raise ValueError("timestamp must be timezone-aware")
 
-        expected_class = _ACTION_MUTATION_CLASS[self.action]
+        expected_class = mutation_class_for_action(
+            self.action
+        )
         if self.mutation_class is not expected_class:
             raise ValueError(
                 f"{self.action.value} requires mutation class "

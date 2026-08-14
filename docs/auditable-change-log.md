@@ -15,6 +15,11 @@ produce before such workflows can be considered complete.
 
 It does **not** implement mailbox writes.
 
+Before future provider writes, the crash-aware pre-write attempt protocol is
+defined separately in [`mutation-journal.md`](mutation-journal.md). The journal
+does not replace this finalized audit record; both share the same attempt /
+`record_id` identity.
+
 ## Safety-model alignment
 
 The canonical mutation classes remain:
