@@ -157,13 +157,26 @@ creates no operational opportunities.
 When enabled, existing `USER_OPERATIONAL` labels can be reused according to
 the operational-layer contract.
 
-## CLI target
+## CLI integration
 
-The installed CLI shell exposes the audit entrypoint:
+The local CLI exposes the audit entrypoint:
 
     semantic-mail-archivist audit
 
-The repository currently has no provider adapter or CLI input contract.
-Therefore issue #9 first establishes the provider-independent audit API and
-renderers. A CLI wrapper must consume explicit provider facts through this
-contract rather than inventing a second analysis path.
+The original issue #9 contract remains the provider-independent audit API and
+renderer boundary.
+
+The current repository now also implements the Gmail-backed path:
+
+    CLI
+      -> Gmail READ_ONLY authorization
+      -> GmailReadAdapter
+      -> provider-neutral ingestion
+      -> existing mailbox audit engine
+      -> human / JSON audit renderer
+
+The provider integration supplies facts only and does not introduce a second
+analysis path or move semantic/safety policy into Gmail-specific code.
+
+See `gmail-audit-cli.md` and `gmail-read-only-ingestion.md` for the provider and
+CLI details.
