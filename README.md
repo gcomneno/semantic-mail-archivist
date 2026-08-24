@@ -1,8 +1,10 @@
 # Semantic Mail Archivist
 
-> **Repair, classify and preserve an existing email knowledge base.**
+> **Preserve the meaning of your mailbox, not just the messages.**
 
-Semantic Mail Archivist is a privacy-first project for repairing and preserving the semantic structure of long-lived email archives.
+Semantic Mail Archivist is a privacy-first, local-first project for understanding, repairing, classifying, and preserving the semantic structure of long-lived email archives.
+
+Its first commercially evaluated product boundary is the **Mailbox Semantic Health Audit**: a read-only Gmail audit that helps reveal the mailbox's observed taxonomy, organization gaps, and review-worthy document, protection, and obsolescence signals without modifying Gmail.
 
 Email is more than an inbox. Over years it becomes a personal and professional knowledge base containing documents, decisions, relationships, contracts, receipts, administrative records, technical history, and other context that may be difficult or impossible to reconstruct elsewhere.
 
@@ -17,6 +19,53 @@ Semantic Mail Archivist aims to make that archive trustworthy again without repl
 The existing mailbox organization is evidence. Semantic Mail Archivist should first understand it, then repair gaps, propose classifications, identify valuable documents, and surface obsolete material conservatively.
 
 The non-negotiable project invariants are recorded in the [Project Charter](docs/PROJECT_CHARTER.md).
+
+## Mailbox Semantic Health Audit
+
+The first commercial product boundary is deliberately read-only:
+
+```text
+Observe
+  -> Understand
+    -> Audit
+      -> Protect
+        -> Propose
+          -> Review
+```
+
+`Repair` is outside this first paid Audit boundary.
+
+The Gmail audit is metadata-first. The current read path may consume:
+
+- Gmail label facts;
+- selected message headers: Subject, From, To, Cc, and Reply-To;
+- MIME structure;
+- attachment metadata such as MIME type, filename, attachment identifier, size, and part structure.
+
+Ordinary ingestion deliberately does not request or download:
+
+- ordinary message body content;
+- raw messages;
+- snippets;
+- attachment bytes;
+- OCR or extracted attachment contents.
+
+The Gmail integration uses exactly `https://www.googleapis.com/auth/gmail.readonly` for this read-only path. That scope is broader than the application's ordinary data surface because Gmail requires it to expose MIME structure; the adapter still minimizes the fields actually requested.
+
+Within this boundary:
+
+- document significance is a **signal/candidate**, not complete document understanding;
+- protected-domain output is a **hint/safety signal**, not proof of complete coverage;
+- obsolescence is a conservative **assessment**, not deletion authority;
+- unknown, ambiguous, incomplete, review-required, and refusal outcomes are valid results;
+- absence of a finding is not proof that no relevant signal exists;
+- the audit makes no legal, statutory-retention, compliance, or certification guarantee.
+
+The accepted public claim is:
+
+> Identify messages and attachments that present signals of possible documentary value or sensitivity and surface where review is warranted.
+
+See [Commercial Acceptance v1](docs/mailbox-semantic-health-audit-acceptance-v1.md) for the verified claim and limitation matrix.
 
 ## The founding problem
 
@@ -151,9 +200,11 @@ Work/Training + @Document
 
 without forcing a replacement taxonomy on the user.
 
-## MVP 0.1
+## Current local product surface
 
-The first implementation is a local, read-first CLI rather than a GUI. Gmail-backed read-only audit and repair dry-run orchestration are now available; explicit mailbox writes remain disabled until later Phase 2 issues.
+The current implementation is a local, read-first CLI rather than a GUI.
+
+Gmail-backed read-only Audit and repair dry-run orchestration are implemented. Explicit mailbox writes remain disabled.
 
 ### Audit
 
@@ -189,13 +240,23 @@ Confidence: 0.97
 Action: NONE (dry-run)
 ```
 
-### Explicit apply
+### Future explicit apply
 
 ```text
 semantic-mail-archivist repair --apply
 ```
 
-Write operations come only after the audit and dry-run behavior is trustworthy.
+This command surface represents explicit write intent, but write execution is currently disabled.
+
+The broader Phase 2 roadmap keeps mutation work separate from read-only Audit readiness:
+
+- **M1 — additive reversible:** explicit apply remains separate Phase 2 work; fresh-state preflight, journaling, auditability, and rollback must be satisfied before it can become trustworthy;
+- **M2 — corrective reversible:** disabled unless explicitly implemented later;
+- **M3 — placement/state change:** disabled unless explicitly implemented later;
+- **M4 — Trash-style destructive but recoverable:** disabled unless explicitly implemented later and subject to stricter safety gates;
+- **M5 — permanent destructive:** prohibited by the initial safety contract.
+
+A successful Audit or dry-run never grants deferred mutation authority.
 
 ## Privacy principles
 
@@ -251,6 +312,10 @@ Tests should verify both successful repair and deliberate refusal when evidence 
 
 ## Project status
 
-**Design / foundation phase. No application implementation yet.**
+The foundation contracts are implemented through a local CLI, Gmail read-only provider integration, mailbox Audit, and Gmail-backed repair dry-run.
 
-The immediate goal is to formalize the safety contract, inference model, synthetic acceptance fixtures, dry-run format, and audit contract before writing the repair engine.
+The **Mailbox Semantic Health Audit** has completed its controlled real-mailbox road test and its dedicated commercial acceptance report. Public documentation now reflects that verified read-only product boundary.
+
+This does **not** by itself declare the service commercially ready. The final commercial-readiness checkpoint remains separate work under issue #46, including unresolved external production OAuth delivery requirements.
+
+The broader Phase 2 roadmap also remains incomplete: explicit M1 apply and rollback are separate work, and later M2/M3/M4 mutation paths remain disabled unless explicitly implemented. M5 permanent deletion remains prohibited by the initial safety contract.
